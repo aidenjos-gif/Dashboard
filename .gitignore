@@ -1,0 +1,8 @@
+# Ignore the massive dependency folder
+node_modules/
+
+# Ignore your personal database
+dashboard.db
+
+# Ignore Mac system files (if you are on macOS)
+.DS_Store

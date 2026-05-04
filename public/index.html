@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Dashboard</title>
+    <style>
+        /* Base typography and layout settings */
+        :root {
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-main: #333333;
+            --text-muted: #666666;
+            --primary: #4a90e2;    
+            --success: #2ecc71;    
+            --danger: #e74c3c;     
+            --accent: #9b59b6;     
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+            margin: 0;
+        }
+
+        h1 { margin-bottom: 30px; color: #2c3e50; }
+
+        /* Core container layout for dashboard components */
+        #flashcard-container, #add-card-container {
+            background-color: var(--card-bg);
+            width: 100%;
+            max-width: 400px;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        #flashcard-container h2 {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-top: 0;
+        }
+
+        /* Flashcard text sizing and layout */
+        #card-front {
+            font-size: 32px;
+            margin: 20px 0 10px 0;
+        }
+
+        #card-back {
+            font-size: 24px;
+            color: var(--primary);
+            margin: 10px 0 20px 0;
+            min-height: 28px;
+        }
+
+        /* Standard button styling with hover/active states */
+        button {
+            border: none;
+            border-radius: 8px;
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.2s;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        button:active { transform: scale(0.97); }
+        button:hover { opacity: 0.9; }
+
+        #btn-flip { background-color: var(--primary); }
+        #btn-add-card { background-color: var(--accent); }
+
+        #grading-buttons {
+            display: flex; 
+            gap: 10px; 
+            margin-top: 15px;
+        }
+        
+        #btn-wrong { background-color: var(--danger); }
+        #btn-right { background-color: var(--success); }
+
+        /* Data entry form input styling */
+        input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box; 
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Aiden's Dashboard</h1>
+
+    <div id="flashcard-container">
+        <h2>Japanese Practice</h2>
+        <h3 id="card-front">Loading front...</h3>
+        <p id="card-back" style="display: none;">Loading back...</p>
+        <button id="btn-flip" style="display: none;">Show Answer</button>
+
+        <div id="grading-buttons" style="display: none;">
+            <button id="btn-wrong">Got it Wrong</button>
+            <button id="btn-right">Got it Right</button>
+        </div>
+    </div>
+
+    <div id="add-card-container">
+        <h3>Add a New Card</h3>
+        <input type="text" id="input-front" placeholder="Front (e.g., To Eat)" />
+        <input type="text" id="input-back" placeholder="Back (e.g., Taberu)" />
+        <button id="btn-add-card">Save to Database</button>
+    </div>
+
+    <script>
+        // Local state array holding active unlearned cards
+        let flashcardQueue = [];
+
+        // DOM element pointers
+        const frontText = document.getElementById('card-front');
+        const backText = document.getElementById('card-back');
+        const btnRight = document.getElementById('btn-right');
+        const btnWrong = document.getElementById('btn-wrong');
+        const btnFlip = document.getElementById('btn-flip'); 
+        const gradingButtons = document.getElementById('grading-buttons'); 
+
+        // Update the UI state based on the current head of the queue
+        function renderCurrentCard() {
+            if (flashcardQueue.length === 0) {
+                frontText.innerText = "You're done!";
+                backText.innerText = "All cards learned.";
+                
+                backText.style.display = 'block';
+                btnFlip.style.display = 'none';
+                gradingButtons.style.display = 'none';
+                return;
+            }
+
+            const currentCard = flashcardQueue[0];
+            frontText.innerText = currentCard.front;
+            backText.innerText = currentCard.back;
+
+            // Reset UI state to hide answer on next card load
+            btnFlip.style.display = 'block';         
+            backText.style.display = 'none';         
+            gradingButtons.style.display = 'none';   
+        }
+
+        // Initialize state from database on page load
+        fetch('/flashcards/queue')
+            .then(response => response.json())
+            .then(data => {
+                flashcardQueue = data;
+                renderCurrentCard();   
+            });
+
+        // Toggle visibility to reveal the card back and grading options
+        btnFlip.addEventListener('click', () => {
+            btnFlip.style.display = 'none';
+            backText.style.display = 'block';
+            gradingButtons.style.display = 'block';
+        });
+
+        // Mark card as learned in database and remove from local queue
+        btnRight.addEventListener('click', () => {
+            const currentCard = flashcardQueue[0];
+            
+            fetch('/flashcards/grade', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: currentCard.id, correct: true })
+            });
+
+            flashcardQueue.shift(); 
+            renderCurrentCard(); 
+        });
+
+        // Re-queue card to the back of the local array without updating DB
+        btnWrong.addEventListener('click', () => {
+            const currentCard = flashcardQueue.shift();
+            flashcardQueue.push(currentCard);
+            renderCurrentCard();
+        });
+
+        // DOM pointers for new card entry
+        const inputFront = document.getElementById('input-front');
+        const inputBack = document.getElementById('input-back');
+        const btnAddCard = document.getElementById('btn-add-card');
+
+        // Package input data and push to backend route
+        btnAddCard.addEventListener('click', () => {
+            const newFront = inputFront.value;
+            const newBack = inputBack.value;
+
+            if (newFront === "" || newBack === "") {
+                alert("Please fill out both sides of the card!");
+                return;
+            }
+
+            fetch('/flashcards', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ front: newFront, back: newBack })
+            })
+            .then(response => response.json())
+            .then(data => {
+                inputFront.value = "";
+                inputBack.value = "";
+                window.location.reload(); 
+            });
+        });
+    </script>
+</body>
+</html>
